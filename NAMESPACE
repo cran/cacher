@@ -1,0 +1,25 @@
+export(
+       "code",
+       "runcode",
+       "skipcode",
+       "loadcache",
+       "cacher",
+       "cc",
+       "setConfig",
+       "getConfig",
+       "sourcefile",
+       "showfiles",
+       "cache",
+       "showobjects",
+       "package",
+       "clonecache",
+       "checkcode",
+       "pkgupload",
+       "checkobjects",
+       "deletecache",
+       "showcode"
+       )
+
+importFrom(digest, "digest")
+import(utils)
+importFrom(tools, "md5sum")
