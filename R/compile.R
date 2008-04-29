@@ -86,6 +86,9 @@ mkdirs <- function(cachedir) {
         dir.create(logdir(cachedir), showWarnings = FALSE, recursive = TRUE)
         dir.create(metadir(cachedir), showWarnings = FALSE, recursive = TRUE)
         dir.create(tagdir(cachedir), showWarnings = FALSE, recursive = TRUE)
+
+        if(!file.exists(cachedir))
+                stop(gettextf("unable to create cache directory '%s'", cachedir))
 }
 
 tagdir <- function(cachedir) file.path(cachedir, "tag")
@@ -285,11 +288,11 @@ exprFileName <- function(expr, history) {
 hashFile <- function(filename) {
         if(length(filename) != 1)
                 stop("only pass a single file name to 'hashFile'")
-        digest(filename, algo = "sha1", file = TRUE)
+        sha1_file(filename)
 }
 
 hash <- function(object) {
-        digest(object, algo = "sha1")
+        sha1(object)
 }
 
 hashExpr <- function(expr, history) {

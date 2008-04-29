@@ -46,7 +46,7 @@ showfiles <- function() {
         sf
 }
 
-showExpressions <- function(num, srcref) {
+showExpressions <- function(num, srcref, full = FALSE) {
         tfile <- tempfile()
         con <- file(tfile, "w")
         on.exit(close(con))
@@ -69,7 +69,13 @@ showExpressions <- function(num, srcref) {
                 }
                 else
                         indent <- exprnum
-                writeLines(paste(indent, expr, sep = "  "), con)
+                line <- paste(indent, expr, sep = "  ")
+                width <- getOption("width")
+
+                if(!full && nchar(line) > width && width > 20)
+                        line <- paste(substr(line, 1, width - 3),
+                                      "...", sep = "")
+                writeLines(line, con)
         }
         close(con)
         on.exit()
@@ -92,15 +98,20 @@ checkSourceFile <- function() {
         
         if(!is.null(srcfile))
                 srcfile
-        else if(is.null(srcfile) && length(showfiles()) == 1) {
-                sourcefile(showfiles())
-                getConfig("srcfile")
-        }
         else {
                 available.files <- showfiles()
-                stop("set source file with 'sourcefile'; ",
-                     "available files are\n\t",
-                     paste(available.files, collapse = ", "))
+
+                if(length(available.files) == 1) {
+                        sourcefile(available.files)
+                        getConfig("srcfile")
+                }
+                else if(length(available.files) > 1) {
+                        stop("set source file with 'sourcefile'; ",
+                             "available files are\n\t",
+                             paste(available.files, collapse = ", "))
+                }
+                else
+                        stop("no source files available")
         }
 }
 
@@ -117,7 +128,7 @@ code <- function(num = NULL, full = FALSE) {
         }
         else
                 expr.print <- attr(exprList, "srcref")
-        showExpressions(num, expr.print)
+        showExpressions(num, expr.print, full)
 }
 
 showobjects <- function(num) {
