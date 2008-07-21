@@ -19,11 +19,8 @@ sourcefile <- function(srcfile = NULL) {
         ## Get it
         if(is.null(srcfile)) {
                 sf <- getConfig("srcfile")
-
-                if(is.null(sf))
-                        return(sf)
-                else
-                        return(basename(sf))
+                rv <- ifelse(is.null(sf), sf, basename(sf))
+                return(rv)
         }
         ## Set it
         cache.srcfile <- file.path(srcdir(cachedir), basename(srcfile))
@@ -44,6 +41,13 @@ showfiles <- function() {
                 NULL
         })
         sf
+}
+
+
+truncateLine <- function(line, width = getOption("width")) {
+        if(nchar(line) > width && width > 20)
+                line <- paste(substr(line, 1, width - 3), "...", sep = "")
+        line
 }
 
 showExpressions <- function(num, srcref, full = FALSE) {
@@ -70,11 +74,9 @@ showExpressions <- function(num, srcref, full = FALSE) {
                 else
                         indent <- exprnum
                 line <- paste(indent, expr, sep = "  ")
-                width <- getOption("width")
 
-                if(!full && nchar(line) > width && width > 20)
-                        line <- paste(substr(line, 1, width - 3),
-                                      "...", sep = "")
+                if(!full)
+                        line <- truncateLine(line[1])
                 writeLines(line, con)
         }
         close(con)
