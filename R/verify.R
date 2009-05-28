@@ -111,6 +111,9 @@ checkobjects <- function(num) {
                 vmessage("checking expression ", i)
 
                 filename <- file.path(dbdir(cachedir), meta[i, "exprID"])
+
+                if(!file.exists(filename))
+                        transferCacheFile(filename, cachedir)
                 testenv <- new.env(parent = emptyenv())
 
                 con <- gzfile(filename, "rb")                
@@ -123,25 +126,24 @@ checkobjects <- function(num) {
                         vmessage("- problem checking objects")
                         cond
                 }, finally = {
-                        if(isOpen(con))
+                        if(isCloseable(con))
                                 close(con)
                 })
                 if(inherits(status, "condition")) {
                         check[[i]] <- logical(length(objects))
                         next
                 }
-                valid <- logical(length(objects))
-                
-                for(j in seq_along(objects)) {
-                        obj <- get(objects[j], testenv)
-                        stored_hash <- as.character(hashVector[objects[j]]) 
-                        valid[j] <- identical(stored_hash, hash(obj))
+                valid <- sapply(objects, function(objname) {
+                        obj <- get(objname, testenv, inherits = FALSE)
+                        stored_hash <- as.character(hashVector[objname])
+                        v <- identical(stored_hash, hash(obj))
 
                         msg <- gettextf("%s object '%s' %s",
-                                        ifelse(valid[j], "+", "-"), objects[j],
-                                        ifelse(valid[j], "OK", "not verified"))
+                                        ifelse(v, "+", "-"), objname,
+                                        ifelse(v, "OK", "not verified"))
                         vmessage(msg)
-                }
+                        v
+                })
                 names(valid) <- objects
                 check[[i]] <- valid
         }

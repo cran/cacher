@@ -5,12 +5,18 @@ cache <- function() {
         getConfig("cachedir")
 }
 
+setcache <- function(dir) {
+        setConfig("cachedir", dir)
+        invisible(dir)
+}
+
 deletecache <- function(cachedir = NULL) {
         if(is.null(cachedir))
                 cachedir <- cache()
         if(!is.character(cachedir) || is.null(cachedir))
                 stop("cache directory not found")
         unlink(cachedir, recursive = TRUE)
+        setConfig("srcfile", NULL)
 }
 
 sourcefile <- function(srcfile = NULL) {
@@ -84,6 +90,29 @@ showExpressions <- function(num, srcref, full = FALSE) {
         file.show(tfile)
 }
 
+code <- function(num = NULL, full = FALSE) {
+        srcfile <- checkSourceFile()
+        exprList <- parse(srcfile)
+
+        if(is.null(num))
+                num <- seq_len(length(exprList))
+        if(!full) {
+                expr.print <- sapply(exprList, function(x) {
+                        deparse(x, width = getConfig("exprDeparseWidth"))[1]
+                })
+        }
+        else {
+                srcref <- attr(exprList, "srcref")
+                sf <- srcfile(srcfile)
+                expr.print <- lapply(seq_along(srcref), function(i) {
+                        n <- srcref[[i]]
+                        getSrcLines(sf, n[1], n[3])
+                })
+        }
+        showExpressions(num, expr.print, full)
+        invisible(exprList[num])
+}
+
 metafile <- function(srcfile) {
         cachedir <- cache()
         file.path(metadir(cachedir),
@@ -98,7 +127,7 @@ showcode <- function() {
 checkSourceFile <- function() {
         srcfile <- getConfig("srcfile")
         
-        if(!is.null(srcfile))
+        if(!is.null(srcfile) && file.exists(srcfile))
                 srcfile
         else {
                 available.files <- showfiles()
@@ -115,22 +144,6 @@ checkSourceFile <- function() {
                 else
                         stop("no source files available")
         }
-}
-
-code <- function(num = NULL, full = FALSE) {
-        srcfile <- checkSourceFile()
-        exprList <- parse(srcfile)
-
-        if(is.null(num))
-                num <- seq_len(length(exprList))
-        if(!full) {
-                expr.print <- sapply(exprList, function(x) {
-                        deparse(x, width = getConfig("exprDeparseWidth"))[1]
-                })
-        }
-        else
-                expr.print <- attr(exprList, "srcref")
-        showExpressions(num, expr.print, full)
 }
 
 showobjects <- function(num) {
@@ -213,4 +226,60 @@ skipcode <- function(num, append = TRUE) {
                 current <- getConfig("skipcode")
                 setConfig("skipcode", sort(unique(c(current, num))))
         }
+}
+
+################################################################################
+## Use CodeDepends stuff
+
+readDoc <- function() {
+        if(!require(CodeDepends))
+                stop("need 'CodeDepends' package to graph code")
+        srcfile <- checkSourceFile()
+        doc <- readScript(srcfile, type = "R")
+        doc
+}
+
+graphcode <- function(num, ...) {
+        if(!require(Rgraphviz))
+                stop("need 'Rgraphviz' package to graph code")
+        doc <- readDoc()
+
+        if(missing(num))
+                num <- seq_along(doc)
+        gr <- makeVariableGraph(frags = doc[num])
+        plot(gr, ...)
+}
+
+## Show code that leads to an object
+
+objectcode <- function(name, num, show = TRUE) {
+        doc <- readDoc()
+
+        if(missing(num))
+                num <- seq_along(doc)
+        info <- as(doc[num], "ScriptInfo")
+        idxlist <- lapply(name, function(n) {
+                getDependsThread(n, info)
+        })
+        idx <- sort.int(unique(unlist(idxlist)))
+
+        if(!length(idx))
+                return(invisible(NULL))
+        if(show)
+                code(idx, full = TRUE)
+        invisible(idx)
+}
+
+## Evaluate code leading to an object
+
+evalobject <- function(name, num, env = parent.frame(), ...) {
+        idx <- objectcode(name, num, show = FALSE)
+        runcode(idx, env, ...)
+}
+
+loadobject <- function(name, num, env = parent.frame()) {
+        idx <- objectcode(name, num, show = FALSE)
+        i <- max(idx)
+        vmessage("loading cache for expression ", i)
+        loadcache(i, env)
 }
